@@ -5,16 +5,13 @@ pub mod style;
 pub use format::Format;
 pub use schema::Config;
 
+use crate::paths;
 use anyhow::{Context as _, Result};
 use std::path::PathBuf;
 
-const FILENAME: &str = "config.toml";
-const APP: &str = "cc-statusline";
-
 /// Resolves the configuration file path, in priority order:
 ///   1. `$CC_STATUSLINE_CONFIG` env var
-///   2. `$XDG_CONFIG_HOME/cc-statusline/config.toml` (via `directories`)
-///   3. `~/.claude/cc-statusline.toml`
+///   2. `~/.claude/cc-statusline/config.toml`
 pub fn config_path() -> Option<PathBuf> {
     if let Ok(p) = std::env::var("CC_STATUSLINE_CONFIG") {
         let path = PathBuf::from(p);
@@ -22,23 +19,8 @@ pub fn config_path() -> Option<PathBuf> {
             return Some(path);
         }
     }
-    if let Some(dirs) = directories::ProjectDirs::from("", "", APP) {
-        let p = dirs.config_dir().join(FILENAME);
-        if p.exists() {
-            return Some(p);
-        }
-    }
-    if let Some(home) = home_dir() {
-        let p = home.join(".claude").join("cc-statusline.toml");
-        if p.exists() {
-            return Some(p);
-        }
-    }
-    None
-}
-
-fn home_dir() -> Option<PathBuf> {
-    directories::BaseDirs::new().map(|b| b.home_dir().to_path_buf())
+    let p = paths::config_file()?;
+    p.exists().then_some(p)
 }
 
 pub fn load() -> Result<Config> {

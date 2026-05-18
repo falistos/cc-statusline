@@ -7,9 +7,11 @@ mod cli;
 mod commands;
 mod config;
 mod context;
+mod errors;
 mod git;
 mod input;
 mod modules;
+mod paths;
 mod render;
 mod transcript;
 
@@ -19,9 +21,11 @@ use input::ClaudeInput;
 use modules::Registry;
 
 fn main() -> ExitCode {
-    panic::set_hook(Box::new(|_| {
+    panic::set_hook(Box::new(|info| {
         // Statusline must never crash visibly: swallow panics so Claude Code
         // keeps the previous statusline rather than rendering an error.
+        // We persist the panic to the error log so it's diagnosable later.
+        errors::log("panic", &info.to_string());
     }));
 
     let result = panic::catch_unwind(dispatch);
@@ -69,15 +73,32 @@ fn dispatch() -> anyhow::Result<()> {
 
 fn run_statusline() {
     let mut buf = String::new();
-    if io::stdin().read_to_string(&mut buf).is_err() {
+    if let Err(e) = io::stdin().read_to_string(&mut buf) {
+        errors::log("stdin read", &e.to_string());
         return;
     }
     let input: ClaudeInput = match serde_json::from_str(&buf) {
         Ok(v) => v,
-        Err(_) => return,
+        Err(e) => {
+            let sample: String = buf.chars().take(500).collect();
+            errors::log("stdin parse", &format!("{e} | stdin[0..500]: {sample}"));
+            return;
+        }
     };
-    let cfg = config::load().unwrap_or_default();
-    let format = Format::parse(&cfg.format).unwrap_or_else(|_| Format(vec![]));
+    let cfg = match config::load() {
+        Ok(c) => c,
+        Err(e) => {
+            errors::log("config load", &e.to_string());
+            config::Config::default()
+        }
+    };
+    let format = match Format::parse(&cfg.format) {
+        Ok(f) => f,
+        Err(e) => {
+            errors::log("format parse", &format!("{e} | format: {}", cfg.format));
+            Format(vec![])
+        }
+    };
     let ctx = Context::new(input);
     let registry = Registry::new();
     let rendered = render::render_global(&format, &ctx, &cfg, &registry);

@@ -1,9 +1,9 @@
 //! `init` — write a starter config and patch ~/.claude/settings.json.
 
+use crate::paths;
 use anyhow::{Context as _, Result};
 use std::path::PathBuf;
 
-const APP: &str = "cc-statusline";
 const TEMPLATE: &str = r#"# cc-statusline configuration
 # Documentation: https://github.com/mediavee/cc-statusline
 #
@@ -76,10 +76,7 @@ pub fn run(force: bool) -> Result<()> {
 }
 
 fn config_path() -> PathBuf {
-    directories::ProjectDirs::from("", "", APP)
-        .map(|d| d.config_dir().to_path_buf())
-        .unwrap_or_else(|| PathBuf::from("./cc-statusline"))
-        .join("config.toml")
+    paths::config_file().unwrap_or_else(|| PathBuf::from("./cc-statusline/config.toml"))
 }
 
 fn write_config(path: &std::path::Path, force: bool) -> Result<()> {

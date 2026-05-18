@@ -1,9 +1,9 @@
 //! Tiny TTL'd disk cache for expensive lookups (currently just git status).
 //!
-//! Cache files live under `/tmp/cc-statusline-<user>/` on Linux (tmpfs-backed
-//! on most distros) and under the platform's standard cache dir elsewhere.
+//! Cache files live under `~/.claude/cc-statusline/cache/`.
 //! Entries are JSON with `expires_at` (unix seconds) and arbitrary `data`.
 
+use crate::paths;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -16,22 +16,9 @@ struct Entry<T> {
 }
 
 pub fn cache_dir() -> PathBuf {
-    let path = platform_cache_dir();
+    let path = paths::cache_dir().unwrap_or_else(|| std::env::temp_dir().join("cc-statusline"));
     let _ = std::fs::create_dir_all(&path);
     path
-}
-
-#[cfg(target_os = "linux")]
-fn platform_cache_dir() -> PathBuf {
-    let user = std::env::var("USER").unwrap_or_else(|_| "default".into());
-    PathBuf::from(format!("/tmp/cc-statusline-{user}"))
-}
-
-#[cfg(not(target_os = "linux"))]
-fn platform_cache_dir() -> PathBuf {
-    directories::ProjectDirs::from("", "", "cc-statusline")
-        .map(|d| d.cache_dir().to_path_buf())
-        .unwrap_or_else(|| std::env::temp_dir().join("cc-statusline"))
 }
 
 fn now() -> u64 {
