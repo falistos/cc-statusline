@@ -1,6 +1,6 @@
 use super::Module;
 use crate::config::Config;
-use crate::config::schema::Threshold;
+use crate::config::schema::{ContextSource, Threshold};
 use crate::context::Context;
 use crate::render::render_module;
 
@@ -16,7 +16,15 @@ impl Module for ContextModule {
         if c.disabled {
             return None;
         }
-        let pct = ctx.input.context_window.as_ref()?.used_percentage?;
+
+        let pct = match c.source {
+            ContextSource::Stdin => stdin_percent(ctx)?,
+            ContextSource::Transcript => transcript_percent(ctx, c.default_window_size)?,
+            ContextSource::Auto => stdin_percent(ctx)
+                .filter(|p| (0.01..=100.0).contains(p))
+                .or_else(|| transcript_percent(ctx, c.default_window_size))?,
+        };
+
         let style = pick_threshold_style(&c.thresholds, &c.style, pct);
         let vars = [
             ("percent", format!("{:.*}", c.precision, pct)),
@@ -30,8 +38,24 @@ impl Module for ContextModule {
     }
 }
 
-/// Pick the threshold with the smallest `max` such that `value <= max`.
-/// Falls back to `default` if no threshold matches.
+fn stdin_percent(ctx: &Context) -> Option<f64> {
+    ctx.input.context_window.as_ref()?.used_percentage
+}
+
+fn transcript_percent(ctx: &Context, default_size: u64) -> Option<f64> {
+    let usage = ctx.last_usage()?;
+    let window = ctx
+        .input
+        .context_window
+        .as_ref()
+        .and_then(|c| c.context_window_size)
+        .unwrap_or(default_size);
+    if window == 0 {
+        return None;
+    }
+    Some((usage.context_tokens() as f64 / window as f64) * 100.0)
+}
+
 fn pick_threshold_style(thresholds: &[Threshold], default: &str, value: f64) -> String {
     thresholds
         .iter()

@@ -7,6 +7,7 @@ mod context;
 mod input;
 mod modules;
 mod render;
+mod transcript;
 
 use config::Format;
 use context::Context;

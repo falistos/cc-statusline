@@ -9,11 +9,14 @@ use crate::config::Config;
 use crate::context::Context;
 use std::collections::HashMap;
 
+pub mod cache_hit;
 pub mod context;
 pub mod cost;
 pub mod model;
 pub mod output_style;
 pub mod rate_limits;
+pub mod tool_usage;
+pub mod transcript_stats;
 pub mod version;
 pub mod workspace;
 
@@ -37,6 +40,9 @@ impl Registry {
             Box::new(rate_limits::RateLimitsModule),
             Box::new(output_style::OutputStyleModule),
             Box::new(version::VersionModule),
+            Box::new(cache_hit::CacheHitModule),
+            Box::new(transcript_stats::TranscriptStatsModule),
+            Box::new(tool_usage::ToolUsageModule),
         ];
         for m in all {
             modules.insert(m.name(), m);

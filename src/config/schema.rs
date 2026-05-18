@@ -21,6 +21,9 @@ pub struct Config {
     pub rate_limits: RateLimitsConfig,
     pub output_style: OutputStyleConfig,
     pub version: VersionConfig,
+    pub cache_hit: CacheHitConfig,
+    pub transcript_stats: TranscriptStatsConfig,
+    pub tool_usage: ToolUsageConfig,
 }
 
 impl Default for Config {
@@ -37,6 +40,9 @@ impl Default for Config {
             rate_limits: RateLimitsConfig::default(),
             output_style: OutputStyleConfig::default(),
             version: VersionConfig::default(),
+            cache_hit: CacheHitConfig::default(),
+            transcript_stats: TranscriptStatsConfig::default(),
+            tool_usage: ToolUsageConfig::default(),
         }
     }
 }
@@ -93,6 +99,20 @@ impl Default for WorkspaceConfig {
     }
 }
 
+#[derive(Debug, Deserialize, Default, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ContextSource {
+    /// Use `context_window.used_percentage` from the stdin payload. Fastest.
+    Stdin,
+    /// Re-compute from the transcript's last assistant message.
+    /// Slightly slower but immune to issue #13783 (cumulative tokens bug).
+    Transcript,
+    /// Prefer stdin, fall back to transcript if stdin's value looks suspect
+    /// (e.g. > 100% or 0% with a non-empty transcript).
+    #[default]
+    Auto,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(default)]
 pub struct ContextConfig {
@@ -100,6 +120,10 @@ pub struct ContextConfig {
     pub format: String,
     pub style: String,
     pub precision: usize,
+    pub source: ContextSource,
+    /// Fallback context window size (tokens) when neither the payload nor the
+    /// transcript exposes one. Used to compute the percent in transcript mode.
+    pub default_window_size: u64,
     pub thresholds: Vec<Threshold>,
 }
 
@@ -110,6 +134,8 @@ impl Default for ContextConfig {
             format: "[$percent%]($style)".to_string(),
             style: "green".to_string(),
             precision: 0,
+            source: ContextSource::Auto,
+            default_window_size: 200_000,
             thresholds: vec![
                 Threshold {
                     max: 50.0,
@@ -124,6 +150,74 @@ impl Default for ContextConfig {
                     style: "red bold".to_string(),
                 },
             ],
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct CacheHitConfig {
+    pub disabled: bool,
+    pub format: String,
+    pub style: String,
+    /// Aggregation scope: "last" (last assistant message) or "session"
+    /// (cumulative across the whole transcript).
+    pub scope: CacheHitScope,
+    pub precision: usize,
+}
+
+#[derive(Debug, Deserialize, Default, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum CacheHitScope {
+    Last,
+    #[default]
+    Session,
+}
+
+impl Default for CacheHitConfig {
+    fn default() -> Self {
+        Self {
+            disabled: true,
+            format: "[cache:$pct%]($style)".to_string(),
+            style: "cyan dim".to_string(),
+            scope: CacheHitScope::Session,
+            precision: 0,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct TranscriptStatsConfig {
+    pub disabled: bool,
+    pub format: String,
+    pub style: String,
+}
+
+impl Default for TranscriptStatsConfig {
+    fn default() -> Self {
+        Self {
+            disabled: true,
+            format: "[$messages msgs]($style)".to_string(),
+            style: "dim".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct ToolUsageConfig {
+    pub disabled: bool,
+    pub format: String,
+    pub style: String,
+}
+
+impl Default for ToolUsageConfig {
+    fn default() -> Self {
+        Self {
+            disabled: true,
+            format: "[$count tools]($style)".to_string(),
+            style: "dim".to_string(),
         }
     }
 }
