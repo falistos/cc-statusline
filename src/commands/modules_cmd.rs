@@ -30,7 +30,14 @@ const DOCS: &[ModuleDoc] = &[
     ModuleDoc {
         name: "context",
         summary: "Context window usage. Source: stdin | transcript | auto.",
-        variables: &[("percent", "% used"), ("remaining", "% remaining")],
+        variables: &[
+            ("percent", "% used"),
+            ("remaining", "% remaining"),
+            ("bar", "filled bar (see [viz] for width/chars)"),
+            ("spark", "single sparkline char ▁▂▃▄▅▆▇█"),
+            ("circle", "single pie-meter char ○◔◑◕●"),
+            ("gradient_style", "interpolated #rrggbb from [[context.gradient]]"),
+        ],
     },
     ModuleDoc {
         name: "cost",
@@ -45,7 +52,18 @@ const DOCS: &[ModuleDoc] = &[
     ModuleDoc {
         name: "rate_limits",
         summary: "5h and 7d usage percentages (independently collapsible).",
-        variables: &[("h5", "5-hour window %"), ("d7", "7-day window %")],
+        variables: &[
+            ("h5", "5-hour window %"),
+            ("h5_bar", "5h filled bar"),
+            ("h5_spark", "5h single sparkline char"),
+            ("h5_circle", "5h pie-meter char"),
+            ("h5_style", "5h gradient or threshold style"),
+            ("d7", "7-day window %"),
+            ("d7_bar", "7d filled bar"),
+            ("d7_spark", "7d single sparkline char"),
+            ("d7_circle", "7d pie-meter char"),
+            ("d7_style", "7d gradient or threshold style"),
+        ],
     },
     ModuleDoc {
         name: "output_style",

@@ -14,6 +14,7 @@ use std::collections::HashMap;
 #[serde(default)]
 pub struct Config {
     pub format: String,
+    pub viz: VizConfig,
     pub model: ModelConfig,
     pub workspace: WorkspaceConfig,
     pub context: ContextConfig,
@@ -35,6 +36,7 @@ impl Default for Config {
         Self {
             format: "$workspace[ $git_branch][ $git_status][ $model][ $context][ $cost][ $rate_limits][ $output_style]"
                 .to_string(),
+            viz: VizConfig::default(),
             model: ModelConfig::default(),
             workspace: WorkspaceConfig::default(),
             context: ContextConfig::default(),
@@ -55,6 +57,38 @@ impl Default for Config {
 pub struct Threshold {
     pub max: f64,
     pub style: String,
+}
+
+/// Shared visualization options used by `$bar` rendering across modules.
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct VizConfig {
+    pub bar_width: usize,
+    pub bar_filled: String,
+    pub bar_empty: String,
+    /// When true, the partially-filled cell uses sub-cell eighths
+    /// (`▏▎▍▌▋▊▉█`) for smoother fill. Only honored with the default
+    /// `bar_filled = "█"` / `bar_empty = "░"`.
+    pub bar_partial: bool,
+}
+
+impl Default for VizConfig {
+    fn default() -> Self {
+        Self {
+            bar_width: 10,
+            bar_filled: "█".to_string(),
+            bar_empty: "░".to_string(),
+            bar_partial: true,
+        }
+    }
+}
+
+/// One color stop in a gradient. `at` is the percentage (0..=100) at which
+/// the color applies; values between stops are linearly interpolated.
+#[derive(Debug, Deserialize, Clone)]
+pub struct GradientStop {
+    pub at: f64,
+    pub color: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -129,6 +163,10 @@ pub struct ContextConfig {
     /// transcript exposes one. Used to compute the percent in transcript mode.
     pub default_window_size: u64,
     pub thresholds: Vec<Threshold>,
+    /// When non-empty, `$gradient_style` resolves to a `#rrggbb` interpolated
+    /// across these stops. Otherwise `$gradient_style` falls back to the
+    /// threshold-picked style.
+    pub gradient: Vec<GradientStop>,
 }
 
 impl Default for ContextConfig {
@@ -154,6 +192,7 @@ impl Default for ContextConfig {
                     style: "red bold".to_string(),
                 },
             ],
+            gradient: vec![],
         }
     }
 }
@@ -325,6 +364,10 @@ pub struct RateLimitsConfig {
     pub style: String,
     /// Each window (5h / 7d) is hidden if its usage is strictly below this %.
     pub hide_below_percent: f64,
+    pub thresholds: Vec<Threshold>,
+    /// When non-empty, `$h5_gradient_style` / `$d7_gradient_style` interpolate
+    /// across these stops. Otherwise they fall back to the threshold pick.
+    pub gradient: Vec<GradientStop>,
 }
 
 impl Default for RateLimitsConfig {
@@ -335,6 +378,8 @@ impl Default for RateLimitsConfig {
             format: "[5h:$h5%]($style)[ 7d:$d7%]($style)".to_string(),
             style: "magenta".to_string(),
             hide_below_percent: 5.0,
+            thresholds: vec![],
+            gradient: vec![],
         }
     }
 }

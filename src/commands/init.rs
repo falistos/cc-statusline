@@ -4,7 +4,7 @@ use crate::paths;
 use anyhow::{Context as _, Result};
 use std::path::PathBuf;
 
-const TEMPLATE: &str = r#"# cc-statusline configuration
+const TEMPLATE: &str = r##"# cc-statusline configuration
 # Documentation: https://github.com/mediavee/cc-statusline
 #
 # The default values shown below are commented out. Uncomment and edit
@@ -33,6 +33,12 @@ const TEMPLATE: &str = r#"# cc-statusline configuration
 # [context]
 # source = "auto"           # "stdin" | "transcript" | "auto"
 # precision = 0
+# Visual alternatives — replace the default `[$percent%]($style)` format with
+# any of these. Available variables: $percent $remaining $bar $spark $circle
+# $gradient_style.
+# format = "[$bar $percent%]($style)"            # smooth bar + label
+# format = "[$spark $percent%]($style)"          # 1-char sparkline + label
+# format = "[$circle $percent%]($gradient_style)" # pie meter + gradient color
 # [[context.thresholds]]
 # max = 50
 # style = "green"
@@ -42,6 +48,17 @@ const TEMPLATE: &str = r#"# cc-statusline configuration
 # [[context.thresholds]]
 # max = 100
 # style = "red bold"
+#
+# Smooth RGB gradient (overrides thresholds for $gradient_style only):
+# [[context.gradient]]
+# at = 0
+# color = "#0a4d0a"
+# [[context.gradient]]
+# at = 50
+# color = "#ffaa00"
+# [[context.gradient]]
+# at = 100
+# color = "#ff0000"
 
 # [cost]
 # style = "yellow"
@@ -51,6 +68,23 @@ const TEMPLATE: &str = r#"# cc-statusline configuration
 # [rate_limits]
 # style = "magenta"
 # hide_below_percent = 5.0
+# Per-window variables (h5_/d7_): $h5 $h5_bar $h5_spark $h5_circle $h5_style
+# (and same for d7_).
+# format = "[5h$h5_spark]($h5_style)[ 7d$d7_spark]($d7_style)"   # ultra-compact
+# format = "[5h $h5_bar $h5%]($h5_style)[ 7d $d7_bar $d7%]($d7_style)"
+#
+# [[rate_limits.gradient]]
+# at = 0
+# color = "#3366ff"
+# [[rate_limits.gradient]]
+# at = 100
+# color = "#ff3366"
+
+# [viz]                       # Shared options for $bar rendering
+# bar_width = 10
+# bar_filled = "█"
+# bar_empty = "░"
+# bar_partial = true          # sub-cell eighths fill for smoother bars
 
 # [git_status]
 # cache_ttl_seconds = 5
@@ -65,7 +99,7 @@ const TEMPLATE: &str = r#"# cc-statusline configuration
 
 # [tool_usage]
 # disabled = false
-"#;
+"##;
 
 pub fn run(force: bool) -> Result<()> {
     let cfg_path = config_path();

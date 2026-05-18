@@ -1,7 +1,9 @@
 use super::Module;
+use super::context::{bar_opts, pick_gradient_or_threshold};
 use crate::config::Config;
 use crate::context::Context;
 use crate::render::render_module;
+use crate::viz;
 
 pub struct RateLimitsModule;
 
@@ -25,18 +27,56 @@ impl Module for RateLimitsModule {
             return None;
         }
 
-        let h5_str = if h5_show {
-            format!("{:.0}", h5.unwrap())
+        let opts = bar_opts(&cfg.viz);
+        let (h5_str, h5_bar, h5_spark, h5_circle, h5_style) = if h5_show {
+            let p = h5.unwrap();
+            (
+                format!("{p:.0}"),
+                viz::bar(p, &opts),
+                viz::spark(p).to_string(),
+                viz::circle(p).to_string(),
+                pick_gradient_or_threshold(&c.gradient, &c.thresholds, &c.style, p),
+            )
         } else {
-            String::new()
+            (
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                c.style.clone(),
+            )
         };
-        let d7_str = if d7_show {
-            format!("{:.0}", d7.unwrap())
+        let (d7_str, d7_bar, d7_spark, d7_circle, d7_style) = if d7_show {
+            let p = d7.unwrap();
+            (
+                format!("{p:.0}"),
+                viz::bar(p, &opts),
+                viz::spark(p).to_string(),
+                viz::circle(p).to_string(),
+                pick_gradient_or_threshold(&c.gradient, &c.thresholds, &c.style, p),
+            )
         } else {
-            String::new()
+            (
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                c.style.clone(),
+            )
         };
 
-        let vars = [("h5", h5_str), ("d7", d7_str)];
+        let vars = [
+            ("h5", h5_str),
+            ("h5_bar", h5_bar),
+            ("h5_spark", h5_spark),
+            ("h5_circle", h5_circle),
+            ("h5_style", h5_style),
+            ("d7", d7_str),
+            ("d7_bar", d7_bar),
+            ("d7_spark", d7_spark),
+            ("d7_circle", d7_circle),
+            ("d7_style", d7_style),
+        ];
         let out = render_module(&c.format, &c.style, &vars, &ctx.term);
         if out.is_empty() { None } else { Some(out) }
     }

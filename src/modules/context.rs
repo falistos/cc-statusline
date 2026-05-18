@@ -1,8 +1,9 @@
 use super::Module;
 use crate::config::Config;
-use crate::config::schema::{ContextSource, Threshold};
+use crate::config::schema::{ContextSource, GradientStop as CfgStop, Threshold, VizConfig};
 use crate::context::Context;
 use crate::render::render_module;
+use crate::viz;
 
 pub struct ContextModule;
 
@@ -26,16 +27,53 @@ impl Module for ContextModule {
         };
 
         let style = pick_threshold_style(&c.thresholds, &c.style, pct);
+        let gradient_style = pick_gradient_or_threshold(&c.gradient, &c.thresholds, &c.style, pct);
         let vars = [
             ("percent", format!("{:.*}", c.precision, pct)),
             (
                 "remaining",
                 format!("{:.*}", c.precision, (100.0 - pct).max(0.0)),
             ),
+            ("bar", viz::bar(pct, &bar_opts(&cfg.viz))),
+            ("spark", viz::spark(pct).to_string()),
+            ("circle", viz::circle(pct).to_string()),
+            ("gradient_style", gradient_style),
         ];
         let out = render_module(&c.format, &style, &vars, &ctx.term);
         if out.is_empty() { None } else { Some(out) }
     }
+}
+
+pub(crate) fn bar_opts(v: &VizConfig) -> viz::BarOpts<'_> {
+    viz::BarOpts {
+        width: v.bar_width,
+        filled: &v.bar_filled,
+        empty: &v.bar_empty,
+        partial: v.bar_partial,
+    }
+}
+
+pub(crate) fn pick_gradient_or_threshold(
+    gradient: &[CfgStop],
+    thresholds: &[Threshold],
+    default: &str,
+    value: f64,
+) -> String {
+    if !gradient.is_empty() {
+        let stops: Vec<viz::GradientStop> = gradient
+            .iter()
+            .filter_map(|s| viz::parse_hex(&s.color).map(|(r, g, b)| viz::GradientStop {
+                at: s.at,
+                r,
+                g,
+                b,
+            }))
+            .collect();
+        if !stops.is_empty() {
+            return viz::gradient_hex(value, &stops);
+        }
+    }
+    pick_threshold_style(thresholds, default, value)
 }
 
 fn stdin_percent(ctx: &Context) -> Option<f64> {
@@ -56,7 +94,7 @@ fn transcript_percent(ctx: &Context, default_size: u64) -> Option<f64> {
     Some((usage.context_tokens() as f64 / window as f64) * 100.0)
 }
 
-fn pick_threshold_style(thresholds: &[Threshold], default: &str, value: f64) -> String {
+pub(crate) fn pick_threshold_style(thresholds: &[Threshold], default: &str, value: f64) -> String {
     thresholds
         .iter()
         .filter(|t| value <= t.max)
