@@ -9,7 +9,12 @@ use crate::config::Config;
 use crate::context::Context;
 use std::collections::HashMap;
 
+pub mod context;
+pub mod cost;
 pub mod model;
+pub mod output_style;
+pub mod rate_limits;
+pub mod version;
 pub mod workspace;
 
 pub trait Module: Sync + Send {
@@ -25,8 +30,13 @@ impl Registry {
     pub fn new() -> Self {
         let mut modules: HashMap<&'static str, Box<dyn Module>> = HashMap::new();
         let all: Vec<Box<dyn Module>> = vec![
-            Box::new(model::ModelModule),
             Box::new(workspace::WorkspaceModule),
+            Box::new(model::ModelModule),
+            Box::new(context::ContextModule),
+            Box::new(cost::CostModule),
+            Box::new(rate_limits::RateLimitsModule),
+            Box::new(output_style::OutputStyleModule),
+            Box::new(version::VersionModule),
         ];
         for m in all {
             modules.insert(m.name(), m);
