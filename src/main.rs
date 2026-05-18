@@ -2,8 +2,10 @@ use std::io::{self, Read};
 use std::panic;
 use std::process::ExitCode;
 
+mod cache;
 mod config;
 mod context;
+mod git;
 mod input;
 mod modules;
 mod render;

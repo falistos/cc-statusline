@@ -24,6 +24,8 @@ pub struct Config {
     pub cache_hit: CacheHitConfig,
     pub transcript_stats: TranscriptStatsConfig,
     pub tool_usage: ToolUsageConfig,
+    pub git_branch: GitBranchConfig,
+    pub git_status: GitStatusConfig,
 }
 
 impl Default for Config {
@@ -31,7 +33,7 @@ impl Default for Config {
         // Each module slot is wrapped in `[ $mod]` so the leading space
         // disappears when the module renders nothing.
         Self {
-            format: "$workspace[ $model][ $context][ $cost][ $rate_limits][ $output_style]"
+            format: "$workspace[ $git_branch][ $git_status][ $model][ $context][ $cost][ $rate_limits][ $output_style]"
                 .to_string(),
             model: ModelConfig::default(),
             workspace: WorkspaceConfig::default(),
@@ -43,6 +45,8 @@ impl Default for Config {
             cache_hit: CacheHitConfig::default(),
             transcript_stats: TranscriptStatsConfig::default(),
             tool_usage: ToolUsageConfig::default(),
+            git_branch: GitBranchConfig::default(),
+            git_status: GitStatusConfig::default(),
         }
     }
 }
@@ -218,6 +222,73 @@ impl Default for ToolUsageConfig {
             disabled: true,
             format: "[$count tools]($style)".to_string(),
             style: "dim".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct GitBranchConfig {
+    pub disabled: bool,
+    pub format: String,
+    pub style: String,
+    /// Truncate branch names longer than this. 0 disables.
+    pub truncate: usize,
+    pub truncate_symbol: String,
+}
+
+impl Default for GitBranchConfig {
+    fn default() -> Self {
+        Self {
+            disabled: false,
+            format: "[($branch)]($style)".to_string(),
+            style: "yellow".to_string(),
+            truncate: 0,
+            truncate_symbol: "…".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct GitStatusConfig {
+    pub disabled: bool,
+    pub format: String,
+    pub style: String,
+    pub cache_ttl_seconds: u64,
+    /// When true, status markers include their count (e.g. "!3" instead of "!").
+    pub show_counts: bool,
+    pub modified_symbol: String,
+    pub untracked_symbol: String,
+    pub added_symbol: String,
+    pub deleted_symbol: String,
+    pub renamed_symbol: String,
+    pub conflicted_symbol: String,
+    pub ahead_symbol: String,
+    pub behind_symbol: String,
+    /// Shown only when the tree is fully clean and up to date.
+    pub clean_symbol: String,
+}
+
+impl Default for GitStatusConfig {
+    fn default() -> Self {
+        Self {
+            disabled: false,
+            format:
+                "[$conflicted$modified$deleted$renamed$added$untracked$ahead$behind$clean]($style)"
+                    .to_string(),
+            style: "red".to_string(),
+            cache_ttl_seconds: 5,
+            show_counts: false,
+            modified_symbol: "!".to_string(),
+            untracked_symbol: "?".to_string(),
+            added_symbol: "+".to_string(),
+            deleted_symbol: "✗".to_string(),
+            renamed_symbol: "»".to_string(),
+            conflicted_symbol: "≠".to_string(),
+            ahead_symbol: "⇡".to_string(),
+            behind_symbol: "⇣".to_string(),
+            clean_symbol: String::new(),
         }
     }
 }

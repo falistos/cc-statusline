@@ -12,6 +12,8 @@ use std::collections::HashMap;
 pub mod cache_hit;
 pub mod context;
 pub mod cost;
+pub mod git_branch;
+pub mod git_status;
 pub mod model;
 pub mod output_style;
 pub mod rate_limits;
@@ -34,6 +36,8 @@ impl Registry {
         let mut modules: HashMap<&'static str, Box<dyn Module>> = HashMap::new();
         let all: Vec<Box<dyn Module>> = vec![
             Box::new(workspace::WorkspaceModule),
+            Box::new(git_branch::GitBranchModule),
+            Box::new(git_status::GitStatusModule),
             Box::new(model::ModelModule),
             Box::new(context::ContextModule),
             Box::new(cost::CostModule),
