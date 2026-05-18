@@ -14,6 +14,7 @@ mod modules;
 mod paths;
 mod render;
 mod transcript;
+mod viz;
 
 use config::Format;
 use context::Context;

@@ -99,12 +99,46 @@ fn render_module_nodes(
                 if has_var && !any_child {
                     continue;
                 }
-                emit_group(&buf, style.as_deref(), term, out);
+                let resolved = style.as_deref().map(|s| substitute_style_vars(s, vars));
+                emit_group(&buf, resolved.as_deref(), term, out);
                 any = true;
             }
         }
     }
     any
+}
+
+/// Substitutes `$ident` references inside a style string with values from the
+/// module's vars map. Unknown variables are replaced with the empty string —
+/// so a missing `$h5_gradient_style` collapses cleanly instead of erroring.
+fn substitute_style_vars(s: &str, vars: &HashMap<&str, &str>) -> String {
+    if !s.contains('$') {
+        return s.to_string();
+    }
+    let mut out = String::with_capacity(s.len());
+    let chars: Vec<char> = s.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if c == '$' {
+            let start = i + 1;
+            let mut end = start;
+            while end < chars.len() && (chars[end].is_ascii_alphanumeric() || chars[end] == '_') {
+                end += 1;
+            }
+            if end > start {
+                let name: String = chars[start..end].iter().collect();
+                if let Some(v) = vars.get(name.as_str()) {
+                    out.push_str(v);
+                }
+                i = end;
+                continue;
+            }
+        }
+        out.push(c);
+        i += 1;
+    }
+    out
 }
 
 fn emit_group(inner: &str, style_str: Option<&str>, term: &TermCaps, out: &mut String) {
