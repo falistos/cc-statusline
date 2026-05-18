@@ -1,0 +1,33 @@
+# https://release-plz.dev/docs/config
+
+[workspace]
+# Conventional Commits prefixes that trigger releases.
+release_commits = "^(feat|fix|perf|refactor)(\\(.+\\))?(!)?:"
+changelog_update = true
+git_release_enable = true
+git_tag_enable = true
+# We don't publish to crates.io.
+publish = false
+# Match the Release workflow tag pattern.
+git_tag_name = "v{{version}}"
+git_release_name = "v{{version}}"
+
+[changelog]
+header = """
+# Changelog
+
+All notable changes to cc-statusline are listed here. The format follows
+Keep a Changelog and the project uses SemVer.
+"""
+body = """
+## [{{version}}] - {{timestamp | date(format="%Y-%m-%d")}}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}\
+- {{ commit.message | upper_first }}{% if commit.breaking %} (BREAKING){% endif %}
+{% endfor %}\
+{% endfor %}
+"""
+
+[[package]]
+name = "cc-statusline"
