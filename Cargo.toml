@@ -1,0 +1,28 @@
+[package]
+name = "cc-statusline"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Fast, configurable statusline for Claude Code"
+authors = ["Mediavee"]
+publish = false
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.9"
+lexopt = "0.3"
+anstyle = "1"
+anyhow = "1"
+thiserror = "2"
+directories = "6"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true
+panic = "abort"
+opt-level = 3
+
+[profile.dev]
+opt-level = 1
