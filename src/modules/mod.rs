@@ -57,6 +57,10 @@ impl Registry {
     pub fn get(&self, name: &str) -> Option<&dyn Module> {
         self.modules.get(name).map(|b| b.as_ref())
     }
+
+    pub fn names(&self) -> Vec<&'static str> {
+        self.modules.keys().copied().collect()
+    }
 }
 
 impl Default for Registry {
