@@ -2,47 +2,43 @@ use std::io::{self, Read};
 use std::panic;
 use std::process::ExitCode;
 
+mod config;
+mod context;
 mod input;
+mod modules;
+mod render;
 
+use config::Format;
+use context::Context;
 use input::ClaudeInput;
+use modules::Registry;
 
 fn main() -> ExitCode {
     panic::set_hook(Box::new(|_| {
-        // Statusline must never crash visibly: a panic prints nothing,
-        // Claude Code keeps the previous statusline.
+        // Statusline must never crash visibly: swallow panics so Claude Code
+        // keeps the previous statusline rather than rendering an error.
     }));
 
-    let result = panic::catch_unwind(run);
-    match result {
-        Ok(Ok(())) => ExitCode::SUCCESS,
-        _ => ExitCode::SUCCESS, // Always exit 0 to avoid Claude Code error display
-    }
+    let _ = panic::catch_unwind(run);
+    // Always exit 0 — non-zero would make Claude Code show an error banner.
+    ExitCode::SUCCESS
 }
 
-fn run() -> anyhow::Result<()> {
+fn run() {
     let mut buf = String::new();
-    io::stdin().read_to_string(&mut buf)?;
+    if io::stdin().read_to_string(&mut buf).is_err() {
+        return;
+    }
+    let input: ClaudeInput = match serde_json::from_str(&buf) {
+        Ok(v) => v,
+        Err(_) => return,
+    };
 
-    let input: ClaudeInput = serde_json::from_str(&buf)?;
+    let cfg = config::load().unwrap_or_default();
+    let format = Format::parse(&cfg.format).unwrap_or_else(|_| Format(vec![]));
+    let ctx = Context::new(input);
+    let registry = Registry::new();
 
-    // Minimal skeleton output: workspace basename + model.
-    // Real rendering pipeline comes in Phase 2-3.
-    let cwd = input
-        .workspace
-        .as_ref()
-        .and_then(|w| w.current_dir.as_deref())
-        .or(input.cwd.as_deref())
-        .unwrap_or("");
-    let dir = std::path::Path::new(cwd)
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or("");
-    let model = input
-        .model
-        .as_ref()
-        .and_then(|m| m.display_name.as_deref())
-        .unwrap_or("");
-
-    print!("{dir} | {model}");
-    Ok(())
+    let rendered = render::render_global(&format, &ctx, &cfg, &registry);
+    print!("{rendered}");
 }
