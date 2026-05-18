@@ -68,5 +68,4 @@ pub struct RateLimits {
 #[derive(Debug, Deserialize, Default)]
 pub struct RateLimitWindow {
     pub used_percentage: Option<f64>,
-    pub resets_at: Option<String>,
 }
