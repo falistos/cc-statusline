@@ -1,4 +1,5 @@
 use super::Module;
+use super::context::pick_threshold_style;
 use crate::config::Config;
 use crate::context::Context;
 use crate::render::render_module;
@@ -32,10 +33,21 @@ impl Module for CostModule {
                 "lines_removed",
                 info.total_lines_removed.unwrap_or(0).to_string(),
             ),
+            ("lines", lines_summary(info)),
         ];
-        let out = render_module(&c.format, &c.style, &vars, &ctx.term);
+        let style = pick_threshold_style(&c.thresholds, &c.style, usd);
+        let out = render_module(&c.format, &style, &vars, &ctx.term);
         if out.is_empty() { None } else { Some(out) }
     }
+}
+
+fn lines_summary(info: &crate::input::Cost) -> String {
+    let added = info.total_lines_added.unwrap_or(0);
+    let removed = info.total_lines_removed.unwrap_or(0);
+    if added + removed == 0 {
+        return String::new();
+    }
+    format!("+{added}/-{removed}")
 }
 
 fn humanize_duration_ms(ms: u64) -> String {

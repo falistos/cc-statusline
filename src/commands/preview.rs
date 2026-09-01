@@ -11,7 +11,10 @@ const MOCK: &str = r#"{
   "session_id": "preview",
   "transcript_path": "/dev/null",
   "cwd": "/home/dev/projects/cc-statusline",
-  "model": { "id": "claude-opus-4-7", "display_name": "Opus 4.7" },
+  "session_name": "refactor the usage merge",
+  "model": { "id": "claude-opus-5", "display_name": "Opus 5 (1M context)" },
+  "effort": { "level": "high" },
+  "fast_mode": false,
   "workspace": {
     "current_dir": "/home/dev/projects/cc-statusline",
     "project_dir": "/home/dev/projects/cc-statusline"
@@ -26,7 +29,14 @@ const MOCK: &str = r#"{
   },
   "context_window": {
     "used_percentage": 65.4,
-    "context_window_size": 200000
+    "context_window_size": 1000000,
+    "total_input_tokens": 654000
+  },
+  "prompt_cache": {
+    "warm": true,
+    "caching_observed": true,
+    "ttl": "1h",
+    "hit_ratio": 0.93
   },
   "rate_limits": {
     "five_hour": { "used_percentage": 35.2 },
@@ -38,7 +48,7 @@ pub fn run() -> Result<()> {
     let input: ClaudeInput = serde_json::from_str(MOCK)?;
     let cfg = crate::config::load().unwrap_or_default();
     let format = Format::parse(&cfg.format)?;
-    let ctx = Context::new(input);
+    let ctx = Context::preview(input);
     let registry = Registry::new();
     let rendered = render::render_global(&format, &ctx, &cfg, &registry);
     println!("{rendered}");

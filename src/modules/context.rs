@@ -26,6 +26,9 @@ impl Module for ContextModule {
                 .or_else(|| transcript_percent(ctx, c.default_window_size))?,
         };
 
+        let cw = ctx.input.context_window.as_ref();
+        let tokens = cw.and_then(|c| c.total_input_tokens);
+        let window = cw.and_then(|c| c.context_window_size);
         let style = pick_threshold_style(&c.thresholds, &c.style, pct);
         let gradient_style = pick_gradient_or_threshold(&c.gradient, &c.thresholds, &c.style, pct);
         let vars = [
@@ -38,6 +41,16 @@ impl Module for ContextModule {
             ("spark", viz::spark(pct).to_string()),
             ("circle", viz::circle(pct).to_string()),
             ("gradient_style", gradient_style),
+            ("tokens", short_tokens(tokens)),
+            ("window", short_tokens(window)),
+            (
+                "tokens_raw",
+                tokens.map(|t| t.to_string()).unwrap_or_default(),
+            ),
+            (
+                "window_raw",
+                window.map(|t| t.to_string()).unwrap_or_default(),
+            ),
         ];
         let out = render_module(&c.format, &style, &vars, &ctx.term);
         if out.is_empty() { None } else { Some(out) }
@@ -62,18 +75,26 @@ pub(crate) fn pick_gradient_or_threshold(
     if !gradient.is_empty() {
         let stops: Vec<viz::GradientStop> = gradient
             .iter()
-            .filter_map(|s| viz::parse_hex(&s.color).map(|(r, g, b)| viz::GradientStop {
-                at: s.at,
-                r,
-                g,
-                b,
-            }))
+            .filter_map(|s| {
+                viz::parse_hex(&s.color).map(|(r, g, b)| viz::GradientStop { at: s.at, r, g, b })
+            })
             .collect();
         if !stops.is_empty() {
             return viz::gradient_hex(value, &stops);
         }
     }
     pick_threshold_style(thresholds, default, value)
+}
+
+/// 630123 -> "630k", 1000000 -> "1M".
+fn short_tokens(t: Option<u64>) -> String {
+    match t {
+        Some(t) if t >= 1_000_000 && t % 1_000_000 == 0 => format!("{}M", t / 1_000_000),
+        Some(t) if t >= 1_000_000 => format!("{}.{}M", t / 1_000_000, (t % 1_000_000) / 100_000),
+        Some(t) if t >= 1_000 => format!("{}k", t / 1_000),
+        Some(t) => t.to_string(),
+        None => String::new(),
+    }
 }
 
 fn stdin_percent(ctx: &Context) -> Option<f64> {

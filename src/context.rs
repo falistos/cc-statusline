@@ -7,6 +7,9 @@ use std::sync::OnceLock;
 pub struct Context {
     pub input: ClaudeInput,
     pub term: TermCaps,
+    /// False in `preview`, so a mock payload never overwrites the usage
+    /// windows persisted from real sessions.
+    pub persist_usage: bool,
     last_usage: OnceLock<Option<TranscriptUsage>>,
     full_stats: OnceLock<Option<TranscriptStats>>,
 }
@@ -16,8 +19,16 @@ impl Context {
         Self {
             input,
             term: TermCaps::detect(),
+            persist_usage: true,
             last_usage: OnceLock::new(),
             full_stats: OnceLock::new(),
+        }
+    }
+
+    pub fn preview(input: ClaudeInput) -> Self {
+        Self {
+            persist_usage: false,
+            ..Self::new(input)
         }
     }
 

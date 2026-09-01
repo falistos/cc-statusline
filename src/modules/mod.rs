@@ -16,7 +16,9 @@ pub mod git_branch;
 pub mod git_status;
 pub mod model;
 pub mod output_style;
+pub mod prompt_cache;
 pub mod rate_limits;
+pub mod session;
 pub mod tool_usage;
 pub mod transcript_stats;
 pub mod version;
@@ -42,6 +44,8 @@ impl Registry {
             Box::new(context::ContextModule),
             Box::new(cost::CostModule),
             Box::new(rate_limits::RateLimitsModule),
+            Box::new(prompt_cache::PromptCacheModule),
+            Box::new(session::SessionModule),
             Box::new(output_style::OutputStyleModule),
             Box::new(version::VersionModule),
             Box::new(cache_hit::CacheHitModule),
