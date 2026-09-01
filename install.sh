@@ -1,7 +1,7 @@
 #!/bin/sh
 # cc-statusline installer
 #
-#   curl -fsSL https://raw.githubusercontent.com/mediavee/cc-statusline/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/falistos/cc-statusline/main/install.sh | sh
 #
 # Environment variables:
 #   INSTALL_DIR   target directory (default: $HOME/.local/bin)
@@ -9,7 +9,7 @@
 
 set -eu
 
-REPO="mediavee/cc-statusline"
+REPO="falistos/cc-statusline"
 BIN="cc-statusline"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 VERSION="${VERSION:-latest}"

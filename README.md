@@ -19,7 +19,7 @@ Fast, configurable statusline for [Claude Code](https://claude.com/claude-code),
 ### One-liner
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/mediavee/cc-statusline/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/falistos/cc-statusline/main/install.sh | sh
 ```
 
 This installs into `~/.local/bin` by default. Override with `INSTALL_DIR=...`.
@@ -27,7 +27,7 @@ This installs into `~/.local/bin` by default. Override with `INSTALL_DIR=...`.
 ### From source
 
 ```sh
-cargo install --git https://github.com/mediavee/cc-statusline
+cargo install --git https://github.com/falistos/cc-statusline
 ```
 
 ### Setup

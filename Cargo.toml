@@ -5,7 +5,7 @@ edition = "2024"
 rust-version = "1.95"
 description = "Fast, configurable statusline for Claude Code"
 authors = ["Mediavee"]
-repository = "https://github.com/mediavee/cc-statusline"
+repository = "https://github.com/falistos/cc-statusline"
 license = "LicenseRef-Proprietary"
 publish = false
 
