@@ -70,6 +70,9 @@ impl GitStatus {
 }
 
 pub fn read_status(cwd: &Path, ttl_secs: u64) -> Option<GitStatus> {
+    // Outside a repo `git status` fails, and a failed compute is not cached:
+    // checking for the gitdir first keeps the no-repo case subprocess-free.
+    find_head_file(cwd)?;
     let cwd_owned = cwd.to_path_buf();
     let key = cache::hash_key("git-status", cwd_owned.as_path());
     cache::get_or_compute(&key, ttl_secs, move || run_git_status(&cwd_owned))
