@@ -19,9 +19,7 @@ pub struct BarOpts<'a> {
     pub width: usize,
     pub filled: &'a str,
     pub empty: &'a str,
-    /// When true, use sub-cell eighths for the partially-filled cell so the
-    /// bar fills smoothly. When false, each cell is either fully filled or
-    /// fully empty.
+    /// Fill the partial cell with sub-cell eighths instead of whole cells.
     pub partial: bool,
 }
 
@@ -98,9 +96,8 @@ pub struct GradientStop {
     pub b: u8,
 }
 
-/// Interpolates between stops and returns a `#rrggbb` string suitable for
-/// embedding in a style string. Returns an empty string if no stops are given.
-/// Stops must be sorted by `at` (caller's responsibility).
+/// Interpolates between stops, which the caller must sort by `at`.
+/// Empty when no stop is given.
 pub fn gradient_hex(pct: f64, stops: &[GradientStop]) -> String {
     if stops.is_empty() {
         return String::new();
@@ -140,8 +137,7 @@ fn format_hex(r: u8, g: u8, b: u8) -> String {
     format!("#{r:02x}{g:02x}{b:02x}")
 }
 
-/// Parses `"#rrggbb"` or `"#rgb"` into an `(r, g, b)` triple. Returns None on
-/// any malformed input; callers should treat None as "skip this stop".
+/// Parses `"#rrggbb"` or `"#rgb"`. None on malformed input.
 pub fn parse_hex(s: &str) -> Option<(u8, u8, u8)> {
     let hex = s.strip_prefix('#')?;
     match hex.len() {

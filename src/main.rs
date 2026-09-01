@@ -8,6 +8,7 @@ mod commands;
 mod config;
 mod context;
 mod errors;
+mod fmt;
 mod git;
 mod input;
 mod modules;

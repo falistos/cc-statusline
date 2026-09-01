@@ -2,6 +2,7 @@ use super::Module;
 use crate::config::Config;
 use crate::config::schema::{ContextSource, GradientStop as CfgStop, Threshold, VizConfig};
 use crate::context::Context;
+use crate::fmt;
 use crate::render::render_module;
 use crate::viz;
 
@@ -41,8 +42,8 @@ impl Module for ContextModule {
             ("spark", viz::spark(pct).to_string()),
             ("circle", viz::circle(pct).to_string()),
             ("gradient_style", gradient_style),
-            ("tokens", short_tokens(tokens)),
-            ("window", short_tokens(window)),
+            ("tokens", tokens.map(fmt::tokens).unwrap_or_default()),
+            ("window", window.map(fmt::tokens).unwrap_or_default()),
             (
                 "tokens_raw",
                 tokens.map(|t| t.to_string()).unwrap_or_default(),
@@ -84,17 +85,6 @@ pub(crate) fn pick_gradient_or_threshold(
         }
     }
     pick_threshold_style(thresholds, default, value)
-}
-
-/// 630123 -> "630k", 1000000 -> "1M".
-fn short_tokens(t: Option<u64>) -> String {
-    match t {
-        Some(t) if t >= 1_000_000 && t % 1_000_000 == 0 => format!("{}M", t / 1_000_000),
-        Some(t) if t >= 1_000_000 => format!("{}.{}M", t / 1_000_000, (t % 1_000_000) / 100_000),
-        Some(t) if t >= 1_000 => format!("{}k", t / 1_000),
-        Some(t) => t.to_string(),
-        None => String::new(),
-    }
 }
 
 fn stdin_percent(ctx: &Context) -> Option<f64> {

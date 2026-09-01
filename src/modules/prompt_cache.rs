@@ -1,6 +1,7 @@
 use super::Module;
 use crate::config::Config;
 use crate::context::Context;
+use crate::fmt;
 use crate::render::render_module;
 use crate::usage;
 
@@ -62,7 +63,7 @@ impl Module for PromptCacheModule {
                     "cold".to_string()
                 },
             ),
-            ("expires_in", left.map(humanize).unwrap_or_default()),
+            ("expires_in", left.map(fmt::duration).unwrap_or_default()),
             ("ttl", pc.ttl.clone().unwrap_or_default()),
             (
                 "requests",
@@ -76,13 +77,5 @@ impl Module for PromptCacheModule {
         ];
         let out = render_module(&c.format, &c.style, &vars, &ctx.term);
         if out.is_empty() { None } else { Some(out) }
-    }
-}
-
-fn humanize(secs: u64) -> String {
-    match secs {
-        s if s >= 3_600 => format!("{}h{:02}", s / 3_600, (s % 3_600) / 60),
-        s if s >= 60 => format!("{}m", s / 60),
-        s => format!("{s}s"),
     }
 }

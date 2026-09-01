@@ -175,9 +175,8 @@ pub struct ContextConfig {
     /// transcript exposes one. Used to compute the percent in transcript mode.
     pub default_window_size: u64,
     pub thresholds: Vec<Threshold>,
-    /// When non-empty, `$gradient_style` resolves to a `#rrggbb` interpolated
-    /// across these stops. Otherwise `$gradient_style` falls back to the
-    /// threshold-picked style.
+    /// When non-empty, `$gradient_style` interpolates across these stops
+    /// instead of using `thresholds`.
     pub gradient: Vec<GradientStop>,
 }
 
@@ -389,8 +388,8 @@ pub struct RateLimitsConfig {
     /// …or rolling over within this many seconds.
     pub reset_within_seconds: u64,
     pub thresholds: Vec<Threshold>,
-    /// When non-empty, `$h5_gradient_style` / `$d7_gradient_style` interpolate
-    /// across these stops. Otherwise they fall back to the threshold pick.
+    /// When non-empty, every `<window>_style` interpolates across these stops
+    /// instead of using `thresholds`.
     pub gradient: Vec<GradientStop>,
 }
 

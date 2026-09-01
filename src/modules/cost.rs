@@ -2,6 +2,7 @@ use super::Module;
 use super::context::pick_threshold_style;
 use crate::config::Config;
 use crate::context::Context;
+use crate::fmt;
 use crate::render::render_module;
 
 pub struct CostModule;
@@ -24,7 +25,7 @@ impl Module for CostModule {
         let duration_ms = info.total_duration_ms.unwrap_or(0);
         let vars = [
             ("value", format!("{:.*}", c.precision, usd)),
-            ("duration", humanize_duration_ms(duration_ms)),
+            ("duration", fmt::duration(duration_ms / 1000)),
             (
                 "lines_added",
                 info.total_lines_added.unwrap_or(0).to_string(),
@@ -48,18 +49,4 @@ fn lines_summary(info: &crate::input::Cost) -> String {
         return String::new();
     }
     format!("+{added}/-{removed}")
-}
-
-fn humanize_duration_ms(ms: u64) -> String {
-    let total = ms / 1000;
-    let h = total / 3600;
-    let m = (total % 3600) / 60;
-    let s = total % 60;
-    if h > 0 {
-        format!("{h}h{m:02}m")
-    } else if m > 0 {
-        format!("{m}m{s:02}s")
-    } else {
-        format!("{s}s")
-    }
 }

@@ -3,6 +3,7 @@ use super::context::{bar_opts, pick_gradient_or_threshold};
 use crate::config::Config;
 use crate::config::schema::RateLimitsConfig;
 use crate::context::Context;
+use crate::fmt;
 use crate::render::render_module;
 use crate::usage::{self, Window, WindowKind};
 use crate::viz;
@@ -77,7 +78,7 @@ fn push_window_vars(
         .resets_at
         .map(|at| at.saturating_sub(now))
         .filter(|&left| p >= c.reset_above_percent || left < c.reset_within_seconds)
-        .map(humanize_duration)
+        .map(fmt::duration)
         .unwrap_or_default();
 
     for (suffix, value) in [
@@ -91,14 +92,5 @@ fn push_window_vars(
         ("_name", window.label.clone()),
     ] {
         vars.push((format!("{prefix}{suffix}"), value));
-    }
-}
-
-fn humanize_duration(secs: u64) -> String {
-    match secs {
-        s if s >= 86_400 => format!("{}d{}h", s / 86_400, (s % 86_400) / 3_600),
-        s if s >= 3_600 => format!("{}h{:02}", s / 3_600, (s % 3_600) / 60),
-        s if s >= 60 => format!("{}m", s / 60),
-        s => format!("{s}s"),
     }
 }

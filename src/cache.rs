@@ -1,4 +1,4 @@
-//! Tiny TTL'd disk cache for expensive lookups (currently just git status).
+//! Tiny TTL'd disk cache for expensive lookups.
 //!
 //! Cache files live under `~/.claude/cc-statusline/cache/`.
 //! Entries are JSON with `expires_at` (unix seconds) and arbitrary `data`.
