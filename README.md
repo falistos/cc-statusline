@@ -76,7 +76,22 @@ Values that did not come from the current payload and are older than
 `stale_after_seconds` are prefixed with `stale_symbol` (`~` by default), and a
 window whose reset time has passed is dropped rather than shown stale. Reset
 countdowns only appear once a window is at or above `reset_above_percent`, or
-rolls over within `reset_within_seconds`.
+rolls over within `reset_within_seconds`. Windows from sources 2 and 3 older
+than `max_age_seconds` (default 21600) are dropped instead of shown stale.
+
+### Account-pooling gateway
+
+Behind a gateway Claude Code stops filling `rate_limits` and refreshing
+`~/.claude.json`, so the sources above describe another account. Set
+`[rate_limits] gateway_url` and the 5h and 7d windows come from
+`<gateway_url>/v1/status` instead, for the live Anthropic account (active,
+enabled, highest CPA priority). The response is fetched with `curl` and cached
+for 60 seconds; if the gateway is unreachable the last response is reused and
+marked stale as it ages. The scoped window and credits keep their usual sources.
+
+Two more variables become available: `$account` (the live account's label,
+e.g. `A`) and `$others` (the other accounts with their 7d usage, e.g.
+`B 98%`). Both are empty without `gateway_url`.
 
 ## Prompt cache
 

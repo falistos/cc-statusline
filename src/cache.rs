@@ -6,7 +6,7 @@
 use crate::paths;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Serialize, Deserialize)]
@@ -28,6 +28,15 @@ fn now() -> u64 {
         .unwrap_or(0)
 }
 
+fn read_entry<T: DeserializeOwned>(path: &Path) -> Option<Entry<T>> {
+    serde_json::from_str(&std::fs::read_to_string(path).ok()?).ok()
+}
+
+/// The last value stored under `key`, expired or not.
+pub fn read_expired<T: DeserializeOwned>(key: &str) -> Option<T> {
+    read_entry(&cache_dir().join(format!("{key}.json"))).map(|entry| entry.data)
+}
+
 pub fn get_or_compute<T, F>(key: &str, ttl_secs: u64, compute: F) -> Option<T>
 where
     T: Serialize + DeserializeOwned,
@@ -36,8 +45,7 @@ where
     let path = cache_dir().join(format!("{key}.json"));
     let current = now();
 
-    if let Ok(content) = std::fs::read_to_string(&path)
-        && let Ok(entry) = serde_json::from_str::<Entry<T>>(&content)
+    if let Some(entry) = read_entry::<T>(&path)
         && entry.expires_at > current
     {
         return Some(entry.data);

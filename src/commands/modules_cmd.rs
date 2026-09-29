@@ -72,6 +72,14 @@ const DOCS: &[ModuleDoc] = &[
             ("scoped_name", "model that scoped window belongs to"),
             ("spend", "gateway spend limit %"),
             ("credits", "extra-credit balance %"),
+            (
+                "account",
+                "live gateway account, e.g. \"A\" (needs gateway_url)",
+            ),
+            (
+                "others",
+                "other pool accounts as \"B 98%\" (7d), space-separated",
+            ),
             ("<w>_bar", "filled bar for window <w>"),
             ("<w>_spark", "single sparkline char"),
             ("<w>_circle", "single pie-meter char"),
