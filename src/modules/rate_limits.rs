@@ -21,16 +21,11 @@ impl Module for RateLimitsModule {
             return None;
         }
 
-        let windows = usage::windows(
-            &ctx.input,
-            c.use_cached_snapshot,
-            c.snapshot_ttl_seconds,
-            ctx.persist_usage,
-        );
+        let usage = usage::windows(&ctx.input, c, ctx.persist_usage);
         let now = usage::now();
-        let mut named: Vec<(String, String)> = Vec::with_capacity(windows.len() * 8);
+        let mut named: Vec<(String, String)> = Vec::with_capacity(usage.windows.len() * 8 + 2);
 
-        for window in &windows {
+        for window in &usage.windows {
             if window.percent < c.hide_below_percent {
                 continue;
             }
@@ -46,6 +41,8 @@ impl Module for RateLimitsModule {
         if named.is_empty() {
             return None;
         }
+        named.push(("account".to_string(), usage.account));
+        named.push(("others".to_string(), usage.others));
 
         let vars: Vec<(&str, String)> = named
             .iter()
