@@ -83,11 +83,11 @@ than `max_age_seconds` (default 21600) are dropped instead of shown stale.
 
 Behind a gateway Claude Code stops filling `rate_limits` and refreshing
 `~/.claude.json`, so the sources above describe another account. Set
-`[rate_limits] gateway_url` and the 5h and 7d windows come from
+`[rate_limits] gateway_url` and the 5h, 7d and Fable (`7d_oi`) windows come from
 `<gateway_url>/v1/status` instead, for the live Anthropic account (active,
 enabled, highest CPA priority). The response is fetched with `curl` and cached
 for 60 seconds; if the gateway is unreachable the last response is reused and
-marked stale as it ages. The scoped window and credits keep their usual sources.
+marked stale as it ages. Credits keep their usual source.
 
 Two more variables become available: `$account` (the live account's label,
 e.g. `A`) and `$others` (the other accounts with their 7d usage, e.g.

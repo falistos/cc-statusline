@@ -14,8 +14,8 @@
 //! `max_age_seconds`.
 //!
 //! Behind an account-pooling gateway none of those describe the live account,
-//! so with `gateway_url` set the 5h and 7d windows come from the gateway's
-//! `/v1/status` instead.
+//! so with `gateway_url` set the 5h, 7d and Fable windows come from the
+//! gateway's `/v1/status` instead.
 
 use crate::cache;
 use crate::config::schema::RateLimitsConfig;
@@ -82,7 +82,7 @@ pub fn windows(input: &ClaudeInput, c: &RateLimitsConfig, persist: bool) -> Usag
     // window the gateway failed to provide.
     let mut skip: &[WindowKind] = &[];
     if let Some(url) = c.gateway_url.as_deref() {
-        skip = &[WindowKind::FiveHour, WindowKind::SevenDay];
+        skip = &[WindowKind::FiveHour, WindowKind::SevenDay, WindowKind::Scoped];
         if let Some(gateway) = gateway_status(url) {
             let age = now().saturating_sub(gateway.fetched_at);
             merged.extend(gateway.windows.into_iter().map(|w| Window { age, ..w }));
@@ -401,6 +401,11 @@ fn fetch_gateway(url: &str) -> Option<Gateway> {
             "7d",
             live_windows.and_then(|w| w.seven_day.as_ref()),
         ),
+        gateway_window(
+            WindowKind::Scoped,
+            "Fable",
+            live_windows.and_then(|w| w.fable.as_ref()),
+        ),
     ]
     .into_iter()
     .flatten()
@@ -482,6 +487,8 @@ struct GatewayWindows {
     five_hour: Option<GatewayWindow>,
     #[serde(rename = "7d")]
     seven_day: Option<GatewayWindow>,
+    #[serde(rename = "7d_oi")]
+    fable: Option<GatewayWindow>,
 }
 
 #[derive(Deserialize)]
