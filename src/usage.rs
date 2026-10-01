@@ -15,14 +15,15 @@
 //!
 //! Behind an account-pooling gateway none of those describe the live account,
 //! so with `gateway_url` set the 5h, 7d and Fable windows come from the
-//! gateway's `/v1/status` instead.
+//! gateway's `/v1/accounts` instead.
 
 use crate::cache;
 use crate::config::schema::RateLimitsConfig;
 use crate::input::ClaudeInput;
 use serde::{Deserialize, Serialize};
+use std::io::Write;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const STORE_FILE: &str = "windows.json";
@@ -31,7 +32,7 @@ const STORE_FILE: &str = "windows.json";
 const STORE_REFRESH_SECS: u64 = 30;
 const SNAPSHOT_KEY: &str = "usage-snapshot";
 const GATEWAY_TTL_SECS: u64 = 60;
-const GATEWAY_POOL: &str = "anthropic";
+const GATEWAY_POOL: &str = "claude";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WindowKind {
@@ -82,8 +83,12 @@ pub fn windows(input: &ClaudeInput, c: &RateLimitsConfig, persist: bool) -> Usag
     // window the gateway failed to provide.
     let mut skip: &[WindowKind] = &[];
     if let Some(url) = c.gateway_url.as_deref() {
-        skip = &[WindowKind::FiveHour, WindowKind::SevenDay, WindowKind::Scoped];
-        if let Some(gateway) = gateway_status(url) {
+        skip = &[
+            WindowKind::FiveHour,
+            WindowKind::SevenDay,
+            WindowKind::Scoped,
+        ];
+        if let Some(gateway) = gateway_status(url, c.gateway_token_file.as_deref()) {
             let age = now().saturating_sub(gateway.fetched_at);
             merged.extend(gateway.windows.into_iter().map(|w| Window { age, ..w }));
             account = gateway.account;
@@ -357,59 +362,75 @@ struct Gateway {
 /// Fetched at most once per TTL. When the gateway is unreachable the last
 /// response is served again with its original `fetched_at`, so its age keeps
 /// growing and the stale marking applies.
-fn gateway_status(url: &str) -> Option<Gateway> {
+fn gateway_status(url: &str, token_file: Option<&str>) -> Option<Gateway> {
     let key = cache::hash_key("gateway-status", url);
     cache::get_or_compute(&key, GATEWAY_TTL_SECS, || {
-        fetch_gateway(url).or_else(|| cache::read_expired(&key))
+        token_file
+            .and_then(|file| fetch_gateway(url, file))
+            .or_else(|| cache::read_expired(&key))
     })
 }
 
-fn fetch_gateway(url: &str) -> Option<Gateway> {
-    let output = Command::new("curl")
-        .args(["-fsS", "-m", "2"])
-        .arg(format!("{}/v1/status", url.trim_end_matches('/')))
-        .output()
-        .ok()?;
-    if !output.status.success() {
+fn fetch_gateway(url: &str, token_file: &str) -> Option<Gateway> {
+    let path = if let Some(relative) = token_file.strip_prefix("~/") {
+        directories::BaseDirs::new()?.home_dir().join(relative)
+    } else {
+        PathBuf::from(token_file)
+    };
+    let token = std::fs::read_to_string(path).ok()?;
+    let token = token.trim();
+    if token.is_empty() || token.chars().any(char::is_control) {
         return None;
     }
-    let status: GatewayStatus = serde_json::from_slice(&output.stdout).ok()?;
-    let mut accounts = status
-        .pools
-        .into_iter()
-        .find(|p| p.id == GATEWAY_POOL)?
-        .accounts;
 
-    // CPA serves the enabled account with the highest priority first.
+    // Pass the secret through stdin so it never appears in process arguments.
+    let mut child = Command::new("curl")
+        .args(["-fsS", "-m", "2", "-H", "@-"])
+        .arg(format!("{}/v1/accounts", url.trim_end_matches('/')))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+    let sent = writeln!(child.stdin.take()?, "Authorization: Bearer {token}").is_ok();
+    let output = child.wait_with_output().ok()?;
+    if !sent || !output.status.success() {
+        return None;
+    }
+    let accounts: Vec<GatewayAccount> = serde_json::from_slice(&output.stdout).ok()?;
+    let mut accounts: Vec<_> = accounts
+        .into_iter()
+        .filter(|a| a.pool == GATEWAY_POOL)
+        .collect();
+
     let live = accounts
         .iter()
         .enumerate()
-        .filter(|(_, a)| a.state.as_deref() == Some("active") && !a.cpa_disabled())
-        .max_by(|(_, a), (_, b)| a.cpa_priority().total_cmp(&b.cpa_priority()))?
+        .filter(|(_, a)| a.ranked && a.verdict == "eligible" && a.rank.is_some())
+        .min_by_key(|(_, a)| a.rank)?
         .0;
     let live = accounts.remove(live);
 
-    let live_windows = live.windows.as_ref();
-    let windows = [
-        gateway_window(
-            WindowKind::FiveHour,
-            "5h",
-            live_windows.and_then(|w| w.five_hour.as_ref()),
-        ),
-        gateway_window(
-            WindowKind::SevenDay,
-            "7d",
-            live_windows.and_then(|w| w.seven_day.as_ref()),
-        ),
-        gateway_window(
-            WindowKind::Scoped,
-            "Fable",
-            live_windows.and_then(|w| w.fable.as_ref()),
-        ),
-    ]
-    .into_iter()
-    .flatten()
-    .collect();
+    let windows = live
+        .gauges
+        .iter()
+        .filter(|g| g.known)
+        .filter_map(|g| {
+            let (kind, label) = match g.window.as_str() {
+                "5h" => (WindowKind::FiveHour, "5h"),
+                "7d" => (WindowKind::SevenDay, "7d"),
+                "7d_oi" => (WindowKind::Scoped, "Fable"),
+                _ => return None,
+            };
+            Some(Window {
+                kind,
+                label: label.to_string(),
+                percent: g.utilization?,
+                resets_at: g.resets_at.as_deref().and_then(parse_iso8601_utc),
+                age: 0,
+            })
+        })
+        .collect();
 
     Some(Gateway {
         fetched_at: now(),
@@ -417,7 +438,15 @@ fn fetch_gateway(url: &str) -> Option<Gateway> {
         others: accounts
             .iter()
             .filter_map(|a| {
-                let percent = a.windows.as_ref()?.seven_day.as_ref()?.utilization?;
+                let percent = a
+                    .gauges
+                    .iter()
+                    .find(|g| {
+                        g.known
+                            && g.role == "planning"
+                            && Some(g.window.as_str()) == a.planning_window.as_deref()
+                    })?
+                    .utilization?;
                 Some(format!("{} {percent:.0}%", short_label(a)))
             })
             .collect(),
@@ -425,74 +454,28 @@ fn fetch_gateway(url: &str) -> Option<Gateway> {
     })
 }
 
-fn gateway_window(kind: WindowKind, label: &str, w: Option<&GatewayWindow>) -> Option<Window> {
-    let w = w?;
-    Some(Window {
-        kind,
-        label: label.to_string(),
-        percent: w.utilization?,
-        resets_at: w.resets_at.as_deref().and_then(parse_iso8601_utc),
-        age: 0,
-    })
-}
-
-impl GatewayAccount {
-    fn cpa_disabled(&self) -> bool {
-        self.cpa.as_ref().and_then(|c| c.disabled).unwrap_or(false)
-    }
-
-    fn cpa_priority(&self) -> f64 {
-        self.cpa
-            .as_ref()
-            .and_then(|c| c.priority)
-            .unwrap_or(f64::NEG_INFINITY)
-    }
-}
-
 /// "Claude A" -> "A".
 fn short_label(account: &GatewayAccount) -> String {
-    let label = account.label.as_deref().unwrap_or(&account.id);
+    let label = account.label.as_str();
     label.split_whitespace().last().unwrap_or(label).to_string()
 }
 
 #[derive(Deserialize)]
-struct GatewayStatus {
-    pools: Vec<GatewayPool>,
-}
-
-#[derive(Deserialize)]
-struct GatewayPool {
-    id: String,
-    accounts: Vec<GatewayAccount>,
-}
-
-#[derive(Deserialize)]
 struct GatewayAccount {
-    id: String,
-    label: Option<String>,
-    state: Option<String>,
-    cpa: Option<GatewayCpa>,
-    windows: Option<GatewayWindows>,
+    label: String,
+    pool: String,
+    rank: Option<u64>,
+    ranked: bool,
+    verdict: String,
+    planning_window: Option<String>,
+    gauges: Vec<GatewayGauge>,
 }
 
 #[derive(Deserialize)]
-struct GatewayCpa {
-    disabled: Option<bool>,
-    priority: Option<f64>,
-}
-
-#[derive(Deserialize)]
-struct GatewayWindows {
-    #[serde(rename = "5h")]
-    five_hour: Option<GatewayWindow>,
-    #[serde(rename = "7d")]
-    seven_day: Option<GatewayWindow>,
-    #[serde(rename = "7d_oi")]
-    fable: Option<GatewayWindow>,
-}
-
-#[derive(Deserialize)]
-struct GatewayWindow {
+struct GatewayGauge {
+    window: String,
+    role: String,
+    known: bool,
     utilization: Option<f64>,
     resets_at: Option<String>,
 }

@@ -83,15 +83,29 @@ than `max_age_seconds` (default 21600) are dropped instead of shown stale.
 
 Behind a gateway Claude Code stops filling `rate_limits` and refreshing
 `~/.claude.json`, so the sources above describe another account. Set
-`[rate_limits] gateway_url` and the 5h, 7d and Fable (`7d_oi`) windows come from
-`<gateway_url>/v1/status` instead, for the live Anthropic account (active,
-enabled, highest CPA priority). The response is fetched with `curl` and cached
-for 60 seconds; if the gateway is unreachable the last response is reused and
-marked stale as it ages. Credits keep their usual source.
+`gateway_url` and `gateway_token_file` under `[rate_limits]` and the known 5h,
+7d and Fable (`7d_oi`) gauges come from the aigw v2 API at
+`<gateway_url>/v1/accounts`. The live account is the eligible, ranked account
+with the smallest numeric rank in the `claude` pool, where new sessions are placed. The token
+file must contain a bearer token with at least the viewer role; it defaults to
+none, and paths support a leading `~/` or `${HOME}`. The token is never logged
+or passed in process arguments.
+
+```toml
+[rate_limits]
+gateway_url = "http://127.0.0.1:8330"
+gateway_token_file = "~/.secrets/aigw-v2/workers.token"
+```
+
+The response is fetched with `curl` (a 2-second timeout) and cached for 60
+seconds. If the token cannot be read, authentication fails, or the gateway is
+unreachable, the last response is reused and marked stale as it ages according
+to `stale_after_seconds`. Without a cached response, gateway values are absent.
+Credits keep their usual source.
 
 Two more variables become available: `$account` (the live account's label,
-e.g. `A`) and `$others` (the other accounts with their 7d usage, e.g.
-`B 98%`). Both are empty without `gateway_url`.
+e.g. `A`) and `$others` (the other accounts in the same pool with their known
+planning-window utilization, e.g. `B 98%`). Both are empty without `gateway_url`.
 
 ## Prompt cache
 
