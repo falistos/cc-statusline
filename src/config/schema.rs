@@ -387,8 +387,10 @@ pub struct RateLimitsConfig {
     /// this are dropped instead of shown as stale.
     pub max_age_seconds: u64,
     /// Account-pooling gateway base URL. When set, the 5h and 7d windows come
-    /// from its `/v1/status` for the live account instead of the local sources.
+    /// from its `/v1/accounts` for the live account instead of the local sources.
     pub gateway_url: Option<String>,
+    /// File containing a viewer bearer token; supports a leading `~/`.
+    pub gateway_token_file: Option<String>,
     /// A reset countdown is only shown for windows at or above this usage…
     pub reset_above_percent: f64,
     /// …or rolling over within this many seconds.
@@ -418,6 +420,7 @@ impl Default for RateLimitsConfig {
             stale_symbol: "~".to_string(),
             max_age_seconds: 21_600,
             gateway_url: None,
+            gateway_token_file: None,
             reset_above_percent: 50.0,
             reset_within_seconds: 3600,
             thresholds: default_usage_thresholds(),
